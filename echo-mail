@@ -1,0 +1,64 @@
+#!/bin/sh
+
+# echo-mail
+# echo back to sender. Purpose is to test mail connectivity
+
+unset TZ
+
+RFROM=
+FROM=
+DATE=
+SUBJECT="Your echo request"
+PATH=/bin:/usr/bin:/usr/pkg/bin
+export PATH
+
+NOW=`/path/to/arpadate`
+
+# scan header, save to file; pick up From: line
+while true
+do
+        IFS=
+        read LINE
+        case "$LINE" in
+        From:*)
+		RFROM=`echo $LINE | sed -e 's/From: */From:/' -e 's/From://'`
+                FROM=`echo $LINE | sed -e 's/From: */From:/' -e 's/From://' \
+		 -e 's/(.*)//' -e 's/.*<//' -e 's/>.*//'`
+                ;;
+	Date:*)
+		DATE="$LINE"
+		;;
+	Subject:*)
+		SUBJECT="`echo $LINE | sed -e 's/Subject://'`"
+		;;
+        "")
+                break
+                ;;
+        esac
+	echo $LINE >> /tmp/echo-mail.$$
+done
+
+IFS=" "
+
+/path/to/sendmail -v -fecho-reply@sunet.se "$FROM" << EOF
+From: echo-reply@sunet.se
+To:   $RFROM
+Subject: Re: $SUBJECT
+
+Your Date line was $DATE
+Now is                   $NOW
+
+ECHO Server at sunet.se recieved your message with the
+following header:
+
+
+    -------  Original Header -------
+
+`cat /tmp/echo-mail.$$`
+
+    -------   End of Header  -------
+
+Postmaster
+EOF
+
+rm -f /tmp/echo-mail.$$
